@@ -4,10 +4,19 @@ import * as React from 'react';
 import { ExternalDocumentation } from '../ExternalDocumentation/ExternalDocumentation';
 import { AdvancedMarkdown } from '../Markdown/AdvancedMarkdown';
 
+import { Operation } from '..';
 import { H1, H2, MiddlePanel, Row, Section, ShareLink } from '../../common-elements';
-import { ContentItemModel } from '../../services/MenuBuilder';
+import { ContentItemModel } from '../../services';
 import { GroupModel, OperationModel } from '../../services/models';
-import { Operation } from '../Operation/Operation';
+import styled from '../../styled-components';
+
+const CallbacksHeader = styled.h3`
+  font-size: 18px;
+  padding: 0 40px;
+  margin: 3em 0 1.1em;
+  color: #253137;
+  font-weight: normal;
+`;
 
 @observer
 export class ContentItems extends React.Component<{
@@ -18,7 +27,22 @@ export class ContentItems extends React.Component<{
     if (items.length === 0) {
       return null;
     }
-    return items.map(item => <ContentItem item={item} key={item.id} />);
+
+    return items.map(item => {
+      if (item.type === 'operation' && item.callbacks.length > 0) {
+        return (
+          <React.Fragment key={item.id}>
+            <ContentItem item={item} />
+            <CallbacksHeader>Callbacks:</CallbacksHeader>
+            {item.callbacks.map((callbackIndex, idx) => {
+              return <ContentItems key={idx} items={callbackIndex.operations} />;
+            })}
+          </React.Fragment>
+        );
+      }
+
+      return <ContentItem key={item.id} item={item} />;
+    });
   }
 }
 
@@ -60,7 +84,7 @@ export class ContentItem extends React.Component<ContentItemProps> {
   }
 }
 
-const middlePanelWrap = component => <MiddlePanel compact={true}>{component}</MiddlePanel>;
+const middlePanelWrap = component => <MiddlePanel>{component}</MiddlePanel>;
 
 @observer
 export class SectionItem extends React.Component<ContentItemProps> {
@@ -71,7 +95,7 @@ export class SectionItem extends React.Component<ContentItemProps> {
     return (
       <>
         <Row>
-          <MiddlePanel compact={level !== 1}>
+          <MiddlePanel>
             <Header>
               <ShareLink to={this.props.item.id} />
               {name}
