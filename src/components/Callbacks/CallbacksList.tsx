@@ -1,7 +1,9 @@
 import * as React from 'react';
+
 import styled from '../../styled-components';
-import { CallbackView } from './Callback';
+
 import { CallbackModel } from '../../services/models';
+import { CallbackView } from './Callback';
 
 const CallbacksHeader = styled.h3`
   font-size: 18px;
