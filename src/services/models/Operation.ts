@@ -65,12 +65,14 @@ export class OperationModel implements IMenuItem {
   security: SecurityRequirementModel[];
   codeSamples: OpenAPIXCodeSample[];
   extensions: Dict<any>;
+  isCallback: boolean;
 
   constructor(
     private parser: OpenAPIParser,
     private operationSpec: ExtendedOpenAPIOperation,
     parent: GroupModel | undefined,
     private options: RedocNormalizedOptions,
+    isCallback: boolean = false,
   ) {
     this.pointer = JsonPointer.compile(['paths', operationSpec.pathName, operationSpec.httpVerb]);
 
@@ -92,6 +94,7 @@ export class OperationModel implements IMenuItem {
     this.operationId = operationSpec.operationId;
     this.codeSamples = operationSpec['x-code-samples'] || [];
     this.path = operationSpec.pathName;
+    this.isCallback = isCallback;
 
     const pathInfo = parser.byRef<OpenAPIPath>(
       JsonPointer.compile(['paths', operationSpec.pathName]),
@@ -102,9 +105,15 @@ export class OperationModel implements IMenuItem {
       operationSpec.servers || (pathInfo && pathInfo.servers) || parser.spec.servers || [],
     );
 
-    this.security = (operationSpec.security || parser.spec.security || []).map(
-      security => new SecurityRequirementModel(security, parser),
-    );
+    if (this.isCallback) {
+      // Callbacks don't have security
+      this.security = [];
+      // TODO (SHAPI): Figure out how to get proper this.name = ?
+    } else {
+      this.security = (operationSpec.security || parser.spec.security || []).map(
+        security => new SecurityRequirementModel(security, parser),
+      );
+    }
 
     if (options.showExtensions) {
       this.extensions = extractExtensions(operationSpec, options.showExtensions);
