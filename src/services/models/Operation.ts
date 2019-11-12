@@ -73,6 +73,7 @@ export class OperationModel implements IMenuItem {
     parent: GroupModel | undefined,
     private options: RedocNormalizedOptions,
     isCallback: boolean = false,
+    callbackEventName: string | undefined = undefined,
   ) {
     this.pointer = JsonPointer.compile(['paths', operationSpec.pathName, operationSpec.httpVerb]);
 
@@ -106,9 +107,12 @@ export class OperationModel implements IMenuItem {
     );
 
     if (this.isCallback) {
-      // Callbacks don't have security
-      this.security = [];
-      // TODO (SHAPI): Figure out how to get proper this.name = ?
+      // Grab our callback-specific security or default to none.
+      this.security = (operationSpec.security || []).map(
+        security => new SecurityRequirementModel(security, parser),
+      );
+      // Use the callback event name if it exists (it should for a given callback), default to operation summary if undefined.
+      this.name = callbackEventName || getOperationSummary(operationSpec);
     } else {
       this.security = (operationSpec.security || parser.spec.security || []).map(
         security => new SecurityRequirementModel(security, parser),
