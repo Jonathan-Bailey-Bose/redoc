@@ -84,7 +84,6 @@ export class OperationModel implements IMenuItem {
         ? parent.id + this.pointer
         : this.pointer;
 
-    this.name = getOperationSummary(operationSpec);
     this.description = operationSpec.description;
     this.parent = parent;
     this.externalDocs = operationSpec.externalDocs;
@@ -97,27 +96,29 @@ export class OperationModel implements IMenuItem {
     this.path = operationSpec.pathName;
     this.isCallback = isCallback;
 
-    const pathInfo = parser.byRef<OpenAPIPath>(
-      JsonPointer.compile(['paths', operationSpec.pathName]),
-    );
-
-    this.servers = normalizeServers(
-      parser.specUrl,
-      operationSpec.servers || (pathInfo && pathInfo.servers) || parser.spec.servers || [],
-    );
-
     if (this.isCallback) {
-      // Grab our callback-specific security or default to none.
+      // Callbacks by default should not inherit the global specification security requirements, but they can have their own (defaults to none).
       this.security = (operationSpec.security || []).map(
         security => new SecurityRequirementModel(security, parser),
       );
-      // Use the callback event name if it exists (it should for a given callback), default to operation summary if undefined.
+      // Callbacks by default should use the event name as it's label, not the operationID.
       this.name = callbackEventName || getOperationSummary(operationSpec);
     } else {
       this.security = (operationSpec.security || parser.spec.security || []).map(
         security => new SecurityRequirementModel(security, parser),
       );
+      this.name = getOperationSummary(operationSpec);
     }
+
+    const pathInfo = parser.byRef<OpenAPIPath>(
+      JsonPointer.compile(['paths', operationSpec.pathName]),
+    );
+
+    // NOTE: Callbacks will automatically inherit the global specification server definition, which in many cases may be undesirable. Override the value per-callback to remedy this.
+    this.servers = normalizeServers(
+      parser.specUrl,
+      operationSpec.servers || (pathInfo && pathInfo.servers) || parser.spec.servers || [],
+    );
 
     if (options.showExtensions) {
       this.extensions = extractExtensions(operationSpec, options.showExtensions);
