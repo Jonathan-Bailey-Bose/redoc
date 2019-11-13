@@ -26,6 +26,7 @@ import {
 import { ContentItemModel, ExtendedOpenAPIOperation } from '../MenuBuilder';
 import { OpenAPIParser } from '../OpenAPIParser';
 import { RedocNormalizedOptions } from '../RedocNormalizedOptions';
+import { CallbackModel } from './Callback';
 import { FieldModel } from './Field';
 import { MediaContentModel } from './MediaContent';
 import { RequestBodyModel } from './RequestBody';
@@ -78,12 +79,15 @@ export class OperationModel implements IMenuItem {
   security: SecurityRequirementModel[];
   codeSamples: Array<OpenAPIXCodeSample | XPayloadSample>;
   extensions: Dict<any>;
+  isCallback: boolean;
 
   constructor(
     private parser: OpenAPIParser,
     private operationSpec: ExtendedOpenAPIOperation,
     parent: GroupModel | undefined,
     private options: RedocNormalizedOptions,
+    isCallback: boolean = false,
+    callbackEventName: string | undefined = undefined,
   ) {
     this.pointer = JsonPointer.compile(['paths', operationSpec.pathName, operationSpec.httpVerb]);
 
@@ -94,7 +98,6 @@ export class OperationModel implements IMenuItem {
         ? parent.id + this.pointer
         : this.pointer;
 
-    this.name = getOperationSummary(operationSpec);
     this.description = operationSpec.description;
     this.parent = parent;
     this.externalDocs = operationSpec.externalDocs;
@@ -104,7 +107,22 @@ export class OperationModel implements IMenuItem {
     this.deprecated = !!operationSpec.deprecated;
     this.operationId = operationSpec.operationId;
     this.path = operationSpec.pathName;
+    this.isCallback = isCallback;
     this.codeSamples = operationSpec['x-code-samples'] || [];
+
+    if (this.isCallback) {
+      // NOTE: Use callback's event name as the view label, not the operationID.
+      this.name = callbackEventName || getOperationSummary(operationSpec);
+      // NOTE: Callbacks by default should not inherit the specification's global `security` definition.
+      // Can be defined individually per-callback in the specification. Defaults to none.
+      this.security = (operationSpec.security || []).map(
+        security => new SecurityRequirementModel(security, parser),
+      );
+    } else {
+      this.name = getOperationSummary(operationSpec);
+      this.security = (operationSpec.security || parser.spec.security || []).map(
+        security => new SecurityRequirementModel(security, parser),
+      );
 
     const requestBodyContent = this.requestBody && this.requestBody.content;
     if (requestBodyContent && requestBodyContent.hasSample) {
@@ -126,13 +144,11 @@ export class OperationModel implements IMenuItem {
       JsonPointer.compile(['paths', operationSpec.pathName]),
     );
 
+    // NOTE: Callbacks by default will inherit the specification's global `servers` definition.
+    // In many cases, this may be undesirable. Override individually in the specification to remedy this.
     this.servers = normalizeServers(
       parser.specUrl,
       operationSpec.servers || (pathInfo && pathInfo.servers) || parser.spec.servers || [],
-    );
-
-    this.security = (operationSpec.security || parser.spec.security || []).map(
-      security => new SecurityRequirementModel(security, parser),
     );
 
     if (options.showExtensions) {
@@ -217,5 +233,17 @@ export class OperationModel implements IMenuItem {
           this.options,
         );
       });
+  }
+
+  @memoize
+  get callbacks() {
+    return Object.keys(this.operationSpec.callbacks || []).map(callbackEventName => {
+      return new CallbackModel(
+        this.parser,
+        callbackEventName,
+        this.operationSpec.callbacks![callbackEventName],
+        this.options,
+      );
+    });
   }
 }
