@@ -17,8 +17,14 @@ import { ResponsesList } from '../Responses/ResponsesList';
 import { ResponseSamples } from '../ResponseSamples/ResponseSamples';
 
 import { OperationModel as OperationType } from '../../services/models';
+import { CallbacksList } from '../Callbacks';
+import { CallbackSamples } from '../CallbackSamples/CallbackSamples';
 import styled from '../../styled-components';
 import { Extensions } from '../Fields/Extensions';
+
+const CallbackMiddlePanel = styled(MiddlePanel)`
+  width: 100%;
+`;
 
 const OperationRow = styled(Row)`
   backface-visibility: hidden;
@@ -43,11 +49,28 @@ export class Operation extends React.Component<OperationProps> {
     const { name: summary, description, deprecated, externalDocs } = operation;
     const hasDescription = !!(description || externalDocs);
 
+    // If this operation is a callback, we won't have a DarkRightPanel, so we can expand the middle panel to 100% width of parent container.
+    const AdaptiveMiddlePanel = operation.isCallback ? CallbackMiddlePanel : MiddlePanel;
+
+    // Non-callback operations will have a DarkRightPanel, callback operations will not.
+    const renderDarkRightPanel = options => {
+      if (!operation.isCallback) {
+        return (
+          <DarkRightPanel>
+            {!options.pathInMiddlePanel && <Endpoint operation={operation} />}
+            <RequestSamples operation={operation} />
+            <ResponseSamples operation={operation} />
+            <CallbackSamples callbacks={operation.callbacks} />
+          </DarkRightPanel>
+        );
+      }
+    };
+
     return (
       <OptionsContext.Consumer>
         {options => (
           <OperationRow>
-            <MiddlePanel>
+            <AdaptiveMiddlePanel>
               <H2>
                 <ShareLink to={operation.id} />
                 {summary} {deprecated && <Badge type="warning"> Deprecated </Badge>}
@@ -63,12 +86,9 @@ export class Operation extends React.Component<OperationProps> {
               <SecurityRequirements securities={operation.security} />
               <Parameters parameters={operation.parameters} body={operation.requestBody} />
               <ResponsesList responses={operation.responses} />
-            </MiddlePanel>
-            <DarkRightPanel>
-              {!options.pathInMiddlePanel && <Endpoint operation={operation} />}
-              <RequestSamples operation={operation} />
-              <ResponseSamples operation={operation} />
-            </DarkRightPanel>
+              <CallbacksList callbacks={operation.callbacks} />
+            </AdaptiveMiddlePanel>
+            {renderDarkRightPanel(options)}
           </OperationRow>
         )}
       </OptionsContext.Consumer>

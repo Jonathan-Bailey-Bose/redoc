@@ -2,6 +2,7 @@ import { observer } from 'mobx-react';
 import * as React from 'react';
 import { CallbackModel } from '../../services/models';
 import { CallbackDetailsWrap, StyledCallbackTitle } from '../Callbacks/styled.elements';
+import { ContentItem } from '../ContentItems/ContentItems';
 
 @observer
 export class CallbackView extends React.Component<{ callback: CallbackModel }> {
@@ -17,7 +18,9 @@ export class CallbackView extends React.Component<{ callback: CallbackModel }> {
         <StyledCallbackTitle onClick={this.toggle} name={name} opened={expanded} />
         {expanded && (
           <CallbackDetailsWrap>
-            <span>{name}</span>
+            {this.props.callback.operations.map(operation => {
+              return <ContentItem key={operation.id} item={operation} />;
+            })}
           </CallbackDetailsWrap>
         )}
       </div>
